@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Detail Partner — Match Partner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <section class="container" style="padding:40px 20px;max-width:820px">
+    <a href="match.html" class="btn btn-sm btn-ghost mb-4" data-i18n="common.back">Kembali</a>
+    <div id="detail"></div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    mountChrome("match");
+
+    (async () => {
+      const id = new URLSearchParams(location.search).get("id");
+      const m = await API.getMatch(id);
+      const wrap = document.getElementById("detail");
+      if (!m) { wrap.innerHTML = `<p class="text-mute">${t("detail.notfound")}</p>`; return; }
+
+      const ev = (await API.getEvents()).find(e => e.title === m.event);
+      const logo = ev ? eventLogo(ev, 56) : "";
+      const certs = m.certificates || [];
+
+      wrap.innerHTML = `
+        <div class="panel panel-clip" style="padding:28px">
+          <div class="flex gap-4 items-center">
+            <div class="avatar" style="width:88px;height:88px;font-size:2rem">${esc(m.name.charAt(0).toUpperCase())}</div>
+            <div style="flex:1">
+              <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:8px">
+                <h2 style="margin:0">${esc(m.name)}</h2>
+                <span class="badge badge-accent">${esc(m.category)}</span>
+              </div>
+              ${m.headline ? `<p class="text-accent font-mono small" style="margin:6px 0 0">${esc(m.headline)}</p>` : ""}
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <div class="sys-label" data-i18n="detail.event">Lomba</div>
+          <div class="flex gap-3 items-center mt-2">
+            ${logo ? `<img src="${logo}" alt="" width="40" height="40" />` : ""}
+            <strong>${esc(m.event)}</strong>
+          </div>
+
+          ${m.bio ? `
+          <div class="divider"></div>
+          <div class="sys-label" data-i18n="detail.about">Tentang</div>
+          <p class="text-dim mt-2">${esc(m.bio)}</p>` : ""}
+
+          <div class="divider"></div>
+          <div class="sys-label" data-i18n="detail.lookingfor">Mencari Partner</div>
+          <p class="mt-2">${esc(m.looking)}</p>
+
+          <div class="divider"></div>
+          <div class="sys-label" data-i18n="detail.skills">Keahlian</div>
+          <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
+            ${(m.skills||[]).map(s => `<span class="badge badge-accent">${esc(s)}</span>`).join("") || '<span class="text-mute small">-</span>'}
+          </div>
+
+          ${certs.length ? `
+          <div class="divider"></div>
+          <div class="sys-label" data-i18n="detail.certs">Sertifikat</div>
+          <div class="mt-2">
+            ${certs.map(c => `
+              <div class="cert-item">
+                <div>
+                  <strong>${esc(c.name)}</strong>
+                  <div class="meta mt-2">${esc(c.org)} · ${fmtDate(c.date)}</div>
+                </div>
+              </div>`).join("")}
+          </div>` : ""}
+
+          <div class="divider"></div>
+          <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:10px">
+            <span class="small font-mono text-dim"><span data-i18n="detail.contact">Kontak</span>: ${esc(m.contact)}</span>
+            <a class="btn btn-primary" href="messages.html?to=${encodeURIComponent(m.id)}" data-i18n="match.message">Kirim Pesan</a>
+          </div>
+        </div>`;
+      applyI18n();
+    })();
+  </script>
+</body>
+</html>

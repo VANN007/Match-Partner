@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pengaturan — Match Partner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <section class="container" style="padding:40px 20px;max-width:720px">
+    <div class="section-head">
+      <div>
+        <div class="sys-label">SYSTEM CONFIG</div>
+        <h2 data-i18n="settings.title">PENGATURAN</h2>
+        <p class="text-dim small mt-2" data-i18n="settings.sub">Kelola akun dan preferensimu</p>
+      </div>
+    </div>
+
+    <!-- LANGUAGE -->
+    <div class="panel panel-clip mb-4" style="padding:24px">
+      <div class="sys-label">LANGUAGE</div>
+      <div class="flex justify-between items-center mt-2" style="flex-wrap:wrap;gap:12px">
+        <div>
+          <strong data-i18n="settings.lang">Bahasa</strong>
+          <p class="text-dim small" data-i18n="settings.lang.desc" style="margin:4px 0 0">Pilih bahasa tampilan website</p>
+        </div>
+        <div class="tab-row" style="margin:0;width:220px">
+          <div class="tab" data-lang="id" onclick="pickLang('id')">ID</div>
+          <div class="tab" data-lang="en" onclick="pickLang('en')">EN</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMAIL -->
+    <div class="panel panel-clip mb-4" style="padding:24px">
+      <div class="sys-label">ACCOUNT</div>
+      <h3 data-i18n="settings.email" style="margin:6px 0 16px">Ubah Email</h3>
+      <form id="emailForm">
+        <div class="field">
+          <label data-i18n="settings.email.current">Email Saat Ini</label>
+          <input class="input" id="curEmail" disabled />
+        </div>
+        <div class="field">
+          <label data-i18n="settings.email.new">Email Baru</label>
+          <input class="input" type="email" name="email" required />
+        </div>
+        <button class="btn btn-primary" data-i18n="settings.save">Simpan Perubahan</button>
+      </form>
+    </div>
+
+    <!-- PASSWORD -->
+    <div class="panel panel-clip mb-4" style="padding:24px">
+      <div class="sys-label">SECURITY</div>
+      <h3 data-i18n="settings.password" style="margin:6px 0 16px">Ubah Password</h3>
+      <form id="passForm">
+        <div class="field">
+          <label data-i18n="settings.password.current">Password Saat Ini</label>
+          <input class="input" type="password" name="current" required />
+        </div>
+        <div class="field">
+          <label data-i18n="settings.password.new">Password Baru</label>
+          <input class="input" type="password" name="next" required />
+        </div>
+        <div class="field">
+          <label data-i18n="settings.password.confirm">Konfirmasi Password Baru</label>
+          <input class="input" type="password" name="confirm" required />
+        </div>
+        <button class="btn btn-primary" data-i18n="settings.save">Simpan Perubahan</button>
+      </form>
+    </div>
+
+    <!-- DANGER -->
+    <div class="panel panel-clip" style="padding:24px;border-color:var(--danger)">
+      <div class="sys-label" style="color:var(--danger)">DANGER ZONE</div>
+      <h3 data-i18n="settings.danger" style="margin:6px 0 16px">Zona Berbahaya</h3>
+      <button class="btn btn-danger" id="logoutBtn2" data-i18n="settings.logout">Keluar dari Akun</button>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    mountChrome("settings");
+    if (!requireAuth()) { /* redirected */ }
+
+    function markLang() {
+      const cur = getLang();
+      document.querySelectorAll(".tab[data-lang]").forEach(t => {
+        t.classList.toggle("active", t.getAttribute("data-lang") === cur);
+      });
+    }
+    function pickLang(l) {
+      setLang(l);
+      markLang();
+      toast(t("common.saved"), "ok");
+    }
+
+    (async () => {
+      const user = await API.getUser();
+      document.getElementById("curEmail").value = user.email || "";
+      markLang();
+    })();
+
+    document.getElementById("emailForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = new FormData(e.target).get("email");
+      await API.changeEmail(email);
+      document.getElementById("curEmail").value = email;
+      e.target.reset();
+      toast(t("common.saved"), "ok");
+    });
+
+    document.getElementById("passForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const current = fd.get("current"), next = fd.get("next"), confirm = fd.get("confirm");
+      if (next !== confirm) {
+        toast(getLang()==="id" ? "Konfirmasi password tidak cocok." : "Password confirmation does not match.", "err");
+        return;
+      }
+      const res = await API.changePassword(current, next);
+      if (!res.ok) { toast(res.error, "err"); return; }
+      e.target.reset();
+      toast(t("common.saved"), "ok");
+    });
+
+    document.getElementById("logoutBtn2").addEventListener("click", () => {
+      API.logout();
+      setTimeout(() => (location.href = "login.html"), 400);
+    });
+  </script>
+</body>
+</html>

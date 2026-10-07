@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pesan — Match Partner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+  <style>
+    .chat-layout { display:grid; grid-template-columns: 280px 1fr; gap:18px; min-height:460px; }
+    @media (max-width:760px){ .chat-layout{ grid-template-columns:1fr; } .chat-list.has-active{ display:none; } }
+    .conv { padding:14px; border:1px solid var(--line); background:var(--bg-2); cursor:pointer; margin-bottom:8px; transition:border-color .15s; }
+    .conv:hover, .conv.active { border-color:var(--accent); }
+    .conv .cname { font-weight:600; }
+    .conv .cprev { font-size:.78rem; color:var(--text-mute); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .thread { border:1px solid var(--line); background:var(--panel); display:flex; flex-direction:column; }
+    .thread-head { padding:14px 18px; border-bottom:1px solid var(--line); font-weight:600; text-transform:uppercase; letter-spacing:1px; }
+    .thread-body { flex:1; padding:18px; overflow-y:auto; max-height:420px; display:flex; flex-direction:column; gap:10px; }
+    .bubble { max-width:72%; padding:10px 14px; font-size:.92rem; line-height:1.35; }
+    .bubble.them { background:var(--panel-2); border:1px solid var(--line); align-self:flex-start; }
+    .bubble.me { background:var(--accent); color:#121212; align-self:flex-end; }
+    .bubble .ts { display:block; font-size:.64rem; opacity:.6; margin-top:4px; font-family:var(--font-mono); }
+    .thread-input { display:flex; gap:8px; padding:14px; border-top:1px solid var(--line); }
+    .thread-empty { flex:1; display:flex; align-items:center; justify-content:center; color:var(--text-mute); padding:40px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <section class="container" style="padding:40px 20px">
+    <div class="section-head">
+      <div>
+        <div class="sys-label">COMMS</div>
+        <h2 data-i18n="chat.title">PESAN</h2>
+        <p class="text-dim small mt-2" data-i18n="chat.sub">Percakapan dengan peserta lain</p>
+      </div>
+    </div>
+
+    <div class="chat-layout">
+      <div class="chat-list" id="convList"></div>
+      <div class="thread" id="thread">
+        <div class="thread-empty" data-i18n="chat.select">Pilih percakapan untuk mulai mengobrol.</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    mountChrome("messages");
+    if (!requireAuth()) { /* redirected */ }
+
+    let MATCHES = [];
+    let activePeer = null;
+
+    async function init() {
+      MATCHES = await API.getMatches();
+      // if ?to=<matchId>, ensure a conversation exists & open it
+      const to = new URLSearchParams(location.search).get("to");
+      if (to) {
+        const m = MATCHES.find(x => String(x.id) === String(to));
+        if (m) {
+          // ensure peer name stored even before first message
+          if (!API.peerName(m.id)) localStorage.setItem("mp_peer_" + m.id, m.name);
+          activePeer = String(m.id);
+        }
+      }
+      renderConvList();
+      if (activePeer) openThread(activePeer);
+    }
+
+    function knownPeers() {
+      const convs = API.getConversations();
+      const ids = new Set(Object.keys(convs));
+      // include an opened-but-empty peer
+      if (activePeer) ids.add(activePeer);
+      return [...ids];
+    }
+
+    function peerDisplayName(id) {
+      const m = MATCHES.find(x => String(x.id) === String(id));
+      return (m && m.name) || API.peerName(id) || ("#" + id);
+    }
+
+    function renderConvList() {
+      const wrap = document.getElementById("convList");
+      const peers = knownPeers();
+      wrap.classList.toggle("has-active", !!activePeer);
+      if (!peers.length) {
+        wrap.innerHTML = `<p class="text-mute small">${t("chat.empty")}</p>`;
+        return;
+      }
+      wrap.innerHTML = peers.map(id => {
+        const thread = API.getThread(id);
+        const last = thread[thread.length - 1];
+        const prev = last ? (last.from === "me" ? "> " : "") + last.text : "...";
+        return `
+          <div class="conv ${String(id)===String(activePeer)?'active':''}" onclick="openThread('${id}')">
+            <div class="cname">${esc(peerDisplayName(id))}</div>
+            <div class="cprev">${esc(prev)}</div>
+          </div>`;
+      }).join("");
+    }
+
+    function openThread(id) {
+      activePeer = String(id);
+      renderConvList();
+      const thread = API.getThread(id);
+      const name = peerDisplayName(id);
+      document.getElementById("thread").innerHTML = `
+        <div class="thread-head">${t("chat.with")}: ${esc(name)}</div>
+        <div class="thread-body" id="threadBody">
+          ${thread.map(bubble).join("")}
+        </div>
+        <form class="thread-input" id="msgForm">
+          <input class="input" id="msgInput" autocomplete="off" data-i18n-ph="chat.placeholder" placeholder="Tulis pesan..." />
+          <button class="btn btn-primary" data-i18n="chat.send">Kirim</button>
+        </form>`;
+      applyI18n();
+      scrollBottom();
+      document.getElementById("msgForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const input = document.getElementById("msgInput");
+        const text = input.value.trim();
+        if (!text) return;
+        API.sendMessage(activePeer, name, text);
+        input.value = "";
+        refreshThread();
+      });
+    }
+
+    function bubble(msg) {
+      const time = new Date(msg.ts).toLocaleTimeString(getLang()==="id"?"id-ID":"en-US", {hour:"2-digit", minute:"2-digit"});
+      return `<div class="bubble ${msg.from}">${esc(msg.text)}<span class="ts">${time}</span></div>`;
+    }
+
+    function refreshThread() {
+      const body = document.getElementById("threadBody");
+      if (!body) return;
+      body.innerHTML = API.getThread(activePeer).map(bubble).join("");
+      renderConvList();
+      scrollBottom();
+    }
+
+    function scrollBottom() {
+      const body = document.getElementById("threadBody");
+      if (body) body.scrollTop = body.scrollHeight;
+    }
+
+    // auto-reply event
+    window.addEventListener("mp:newmessage", (e) => {
+      if (String(e.detail.peerId) === String(activePeer)) refreshThread();
+      else renderConvList();
+    });
+
+    init();
+  </script>
+</body>
+</html>

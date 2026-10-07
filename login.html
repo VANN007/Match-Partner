@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Masuk — Match Partner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <div class="text-center mb-4">
+        <div class="brand" style="justify-content:center">
+          <span class="mark"></span>
+          <span class="name">MATCH<b>PARTNER</b></span>
+        </div>
+        <p class="sys-label mt-2" data-i18n="auth.tagline" style="justify-content:center">Sistem Pencarian Partner Lomba</p>
+      </div>
+
+      <div class="panel panel-clip" style="padding:28px">
+        <div class="tab-row">
+          <div class="tab active" id="tabLogin" onclick="switchTab('login')" data-i18n="auth.login">Masuk</div>
+          <div class="tab" id="tabReg" onclick="switchTab('register')" data-i18n="auth.register">Daftar</div>
+        </div>
+
+        <!-- LOGIN -->
+        <form id="loginForm">
+          <div class="field">
+            <label data-i18n="auth.email">Email</label>
+            <input class="input" type="email" name="email" value="demo@matchpartner.id" required />
+          </div>
+          <div class="field">
+            <label data-i18n="auth.password">Password</label>
+            <input class="input" type="password" name="password" value="demo123" required />
+          </div>
+          <button class="btn btn-primary w-full" data-i18n="auth.login.btn">Masuk</button>
+          <p class="text-mute small mt-4 font-mono">// demo: demo@matchpartner.id / demo123</p>
+        </form>
+
+        <!-- REGISTER -->
+        <form id="regForm" class="hidden">
+          <div class="field">
+            <label data-i18n="auth.name">Nama Lengkap</label>
+            <input class="input" name="fullname" required />
+          </div>
+          <div class="field">
+            <label data-i18n="auth.email">Email</label>
+            <input class="input" type="email" name="email" required />
+          </div>
+          <div class="field">
+            <label data-i18n="auth.password">Password</label>
+            <input class="input" type="password" name="password" required />
+          </div>
+          <div class="field">
+            <label data-i18n="auth.confirm">Konfirmasi Password</label>
+            <input class="input" type="password" name="confirm" required />
+          </div>
+          <button class="btn btn-primary w-full" data-i18n="auth.register.btn">Buat Akun</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    mountChrome("");
+
+    function switchTab(which) {
+      const login = which === "login";
+      document.getElementById("tabLogin").classList.toggle("active", login);
+      document.getElementById("tabReg").classList.toggle("active", !login);
+      document.getElementById("loginForm").classList.toggle("hidden", !login);
+      document.getElementById("regForm").classList.toggle("hidden", login);
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await API.login(fd.get("email"), fd.get("password"));
+      if (!res.ok) { toast(res.error, "err"); return; }
+      toast(getLang()==="id" ? "Berhasil masuk." : "Logged in.", "ok");
+      setTimeout(() => (location.href = "index.html"), 500);
+    });
+
+    document.getElementById("regForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      if (fd.get("password") !== fd.get("confirm")) {
+        toast(getLang()==="id" ? "Konfirmasi password tidak cocok." : "Password confirmation does not match.", "err");
+        return;
+      }
+      const res = await API.register(fd.get("fullname"), fd.get("email"), fd.get("password"));
+      if (!res.ok) { toast(res.error || "Error", "err"); return; }
+      toast(getLang()==="id" ? "Akun dibuat." : "Account created.", "ok");
+      setTimeout(() => (location.href = "profile.html"), 600);
+    });
+  </script>
+</body>
+</html>

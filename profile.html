@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profil — Match Partner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <section class="container" style="padding:40px 20px;max-width:860px">
+    <div class="section-head">
+      <div>
+        <div class="sys-label">OPERATOR PROFILE</div>
+        <h2 data-i18n="profile.title">PROFIL</h2>
+      </div>
+      <button class="btn" id="editToggle" onclick="toggleEdit()" data-i18n="profile.edit">Edit Profil</button>
+    </div>
+
+    <!-- VIEW MODE -->
+    <div id="viewMode">
+      <div class="panel panel-clip" style="padding:28px">
+        <div class="flex gap-4 items-center">
+          <div class="avatar" id="vAvatar" style="width:88px;height:88px;font-size:2rem"></div>
+          <div>
+            <h2 id="vName" style="margin:0 0 4px"></h2>
+            <p class="text-accent font-mono small" id="vHeadline"></p>
+            <p class="text-mute small font-mono" id="vEmail"></p>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="sys-label" data-i18n="profile.about">Tentang</div>
+        <p id="vBio" class="text-dim"></p>
+        <div class="divider"></div>
+        <div class="sys-label" data-i18n="profile.skills">Keahlian</div>
+        <div class="flex gap-2 mt-2" id="vSkills" style="flex-wrap:wrap"></div>
+      </div>
+
+      <!-- CERTIFICATES -->
+      <div class="section-head mt-6">
+        <div>
+          <div class="sys-label">CREDENTIALS</div>
+          <h2 data-i18n="profile.certs" style="font-size:1.3rem">Sertifikat & Lisensi</h2>
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="openModal('certModal')" data-i18n="profile.addcert">+ Tambah Sertifikat</button>
+      </div>
+      <div id="certList"></div>
+    </div>
+
+    <!-- EDIT MODE -->
+    <div id="editMode" class="hidden">
+      <div class="panel panel-clip" style="padding:28px">
+        <form id="editForm">
+          <div class="field">
+            <label data-i18n="profile.fullname">Nama Lengkap</label>
+            <input class="input" name="fullname" required />
+          </div>
+          <div class="field">
+            <label data-i18n="profile.headline">Headline</label>
+            <input class="input" name="headline" />
+          </div>
+          <div class="field">
+            <label data-i18n="profile.bio">Bio</label>
+            <textarea class="textarea" name="bio"></textarea>
+          </div>
+          <div class="field">
+            <label data-i18n="profile.skills.input">Keahlian (pisahkan dengan koma)</label>
+            <input class="input" name="skills" />
+          </div>
+          <div class="flex gap-3 mt-4">
+            <button type="submit" class="btn btn-primary" data-i18n="profile.save">Simpan</button>
+            <button type="button" class="btn btn-ghost" onclick="toggleEdit()" data-i18n="profile.cancel">Batal</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- CERT MODAL -->
+  <div class="modal-backdrop" id="certModal">
+    <div class="modal panel-clip">
+      <h3 data-i18n="profile.addcert">Tambah Sertifikat</h3>
+      <form id="certForm">
+        <div class="field">
+          <label data-i18n="profile.cert.name">Nama Sertifikat</label>
+          <input class="input" name="name" required />
+        </div>
+        <div class="field">
+          <label data-i18n="profile.cert.org">Diterbitkan Oleh</label>
+          <input class="input" name="org" required />
+        </div>
+        <div class="field">
+          <label data-i18n="profile.cert.date">Tanggal Terbit</label>
+          <input class="input" type="date" name="date" required />
+        </div>
+        <div class="field">
+          <label data-i18n="profile.cert.id">ID Kredensial (opsional)</label>
+          <input class="input" name="credId" />
+        </div>
+        <div class="flex gap-3 mt-4">
+          <button type="submit" class="btn btn-primary" data-i18n="profile.cert.add">Tambah</button>
+          <button type="button" class="btn btn-ghost" onclick="closeModal('certModal')" data-i18n="common.cancel">Batal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    mountChrome("profile");
+    if (!requireAuth()) { /* redirected */ }
+    let USER = null;
+
+    async function load() {
+      USER = await API.getUser();
+      renderView();
+    }
+
+    function renderView() {
+      document.getElementById("vAvatar").textContent = (USER.fullname||"?").charAt(0).toUpperCase();
+      document.getElementById("vName").textContent = USER.fullname || "-";
+      document.getElementById("vHeadline").textContent = USER.headline || "";
+      document.getElementById("vEmail").textContent = USER.email || "";
+      document.getElementById("vBio").textContent = USER.bio || "-";
+      document.getElementById("vSkills").innerHTML =
+        (USER.skills||[]).map(s => `<span class="badge badge-accent">${esc(s)}</span>`).join("") || `<span class="text-mute small">-</span>`;
+      renderCerts();
+    }
+
+    function renderCerts() {
+      const wrap = document.getElementById("certList");
+      const certs = USER.certificates || [];
+      if (!certs.length) { wrap.innerHTML = `<p class="text-mute small">${t("profile.cert.empty")}</p>`; return; }
+      wrap.innerHTML = certs.map(c => `
+        <div class="cert-item">
+          <div>
+            <strong>${esc(c.name)}</strong>
+            <div class="meta mt-2">${esc(c.org)}</div>
+            <div class="meta">${t("profile.cert.issued")}: ${fmtDate(c.date)}${c.credId?` · ${t("profile.cert.credid")}: ${esc(c.credId)}`:""}</div>
+          </div>
+          <button class="btn btn-sm btn-danger btn-ghost" onclick="delCert(${c.id})" title="${t("common.delete")}">✕</button>
+        </div>`).join("");
+    }
+
+    function toggleEdit() {
+      const v = document.getElementById("viewMode");
+      const e = document.getElementById("editMode");
+      const editing = !e.classList.contains("hidden");
+      if (editing) {
+        e.classList.add("hidden"); v.classList.remove("hidden");
+      } else {
+        const f = document.getElementById("editForm");
+        f.fullname.value = USER.fullname || "";
+        f.headline.value = USER.headline || "";
+        f.bio.value = USER.bio || "";
+        f.skills.value = (USER.skills||[]).join(", ");
+        v.classList.add("hidden"); e.classList.remove("hidden");
+      }
+    }
+
+    document.getElementById("editForm").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      USER = await API.updateUser({
+        fullname: fd.get("fullname"),
+        headline: fd.get("headline"),
+        bio: fd.get("bio"),
+        skills: (fd.get("skills")||"").split(",").map(s=>s.trim()).filter(Boolean),
+      });
+      toggleEdit();
+      renderView();
+      toast(t("common.saved"), "ok");
+    });
+
+    document.getElementById("certForm").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      USER = await API.addCertificate({
+        name: fd.get("name"), org: fd.get("org"),
+        date: fd.get("date"), credId: fd.get("credId"),
+      });
+      ev.target.reset();
+      closeModal("certModal");
+      renderCerts();
+      toast(t("common.saved"), "ok");
+    });
+
+    async function delCert(id) {
+      USER = await API.deleteCertificate(id);
+      renderCerts();
+      toast(t("common.deleted"), "ok");
+    }
+
+    load();
+  </script>
+</body>
+</html>

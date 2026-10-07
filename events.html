@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upcoming Lomba — Match Partner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <section class="container" style="padding:40px 20px">
+    <div class="section-head">
+      <div>
+        <div class="sys-label">EVENTS DATABASE</div>
+        <h2 data-i18n="events.title">UPCOMING LOMBA</h2>
+        <p class="text-dim small mt-2" data-i18n="events.sub">Daftar kompetisi yang akan datang</p>
+      </div>
+      <select class="select" id="catFilter" style="max-width:240px" onchange="render()">
+        <option value="" data-i18n="events.filter.all">Semua Kategori</option>
+      </select>
+    </div>
+
+    <div class="grid grid-3" id="eventList"></div>
+  </section>
+
+  <!-- DETAIL MODAL -->
+  <div class="modal-backdrop" id="detailModal">
+    <div class="modal panel-clip" id="detailBody"></div>
+  </div>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    mountChrome("events");
+    let EVENTS = [];
+
+    async function load() {
+      EVENTS = await API.getEvents();
+      const cats = [...new Set(EVENTS.map(e => e.category))];
+      const sel = document.getElementById("catFilter");
+      cats.forEach(c => {
+        const o = document.createElement("option");
+        o.value = c; o.textContent = c; sel.appendChild(o);
+      });
+      render();
+    }
+
+    function render() {
+      const cat = document.getElementById("catFilter").value;
+      const list = EVENTS.filter(e => !cat || e.category === cat);
+      const wrap = document.getElementById("eventList");
+      if (!list.length) { wrap.innerHTML = `<p class="text-mute">${t("events.empty")}</p>`; return; }
+      wrap.innerHTML = list.map(ev => {
+        const dl = daysLeft(ev.deadline);
+        const open = dl >= 0;
+        return `
+        <div class="card">
+          <div class="flex justify-between items-center">
+            <span class="badge badge-accent">${esc(ev.category)}</span>
+            <span class="badge ${open?'badge-open':'badge-closed'}">${open?t("events.open"):t("events.closed")}</span>
+          </div>
+          <div class="flex gap-3 items-center mt-2">
+            <img src="${eventLogo(ev, 48)}" alt="" width="48" height="48" />
+            <div>
+              <h3 style="margin:0">${esc(ev.title)}</h3>
+              <p class="text-dim small" style="margin:2px 0 0">${esc(ev.organizer)}</p>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="flex justify-between small mb-2">
+            <span class="text-mute font-mono">${t("events.date")}</span>
+            <span class="font-mono">${fmtDate(ev.date)}</span>
+          </div>
+          <div class="flex justify-between small">
+            <span class="text-mute font-mono">${t("events.deadline")}</span>
+            <span class="font-mono ${open?'text-accent':'text-mute'}">${fmtDate(ev.deadline)}</span>
+          </div>
+          <div class="divider"></div>
+          <div class="flex gap-2">
+            <button class="btn btn-sm w-full" onclick="detail(${ev.id})" data-i18n="events.detail">Detail</button>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    function detail(id) {
+      const ev = EVENTS.find(e => e.id === id);
+      if (!ev) return;
+      const dl = daysLeft(ev.deadline);
+      const open = dl >= 0;
+      document.getElementById("detailBody").innerHTML = `
+        <div class="flex gap-3 items-center mb-4">
+          <img src="${eventLogo(ev, 56)}" alt="" width="56" height="56" />
+          <span class="badge badge-accent">${esc(ev.category)}</span>
+        </div>
+        <h3 class="mt-2">${esc(ev.title)}</h3>
+        <p class="text-dim small">${esc(ev.organizer)} · ${esc(ev.location)}</p>
+        <div class="divider"></div>
+        <p>${esc(ev.desc)}</p>
+        <div class="divider"></div>
+        <div class="flex justify-between small mb-2">
+          <span class="text-mute font-mono">${t("events.date")}</span>
+          <span class="font-mono">${fmtDate(ev.date)}</span>
+        </div>
+        <div class="flex justify-between small">
+          <span class="text-mute font-mono">${t("events.deadline")}</span>
+          <span class="font-mono ${open?'text-accent':'text-mute'}">${fmtDate(ev.deadline)}</span>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button class="btn btn-primary" ${open?'':'disabled'} onclick="toast('${open?t("common.saved"):t("events.closed")}','${open?"ok":"err"}')" data-i18n="events.register">Daftar</button>
+          <button class="btn btn-ghost" onclick="closeModal('detailModal')" data-i18n="common.close">Tutup</button>
+        </div>`;
+      applyI18n();
+      openModal("detailModal");
+    }
+
+    load();
+  </script>
+</body>
+</html>

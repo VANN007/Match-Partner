@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cari Partner — Match Partner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <section class="container" style="padding:40px 20px">
+    <div class="section-head">
+      <div>
+        <div class="sys-label">MATCHING</div>
+        <h2 data-i18n="match.title">CARI PARTNER</h2>
+        <p class="text-dim small mt-2" data-i18n="match.sub">Jelajahi peserta yang mencari rekan tim lomba</p>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('postModal')" data-i18n="match.post">+ Posting Kebutuhan</button>
+    </div>
+
+    <!-- controls -->
+    <div class="flex gap-3 mb-4" style="flex-wrap:wrap">
+      <input class="input" id="searchInput" style="flex:1;min-width:220px" data-i18n-ph="match.search" placeholder="Cari..." oninput="render()" />
+      <select class="select" id="catFilter" style="max-width:240px" onchange="render()">
+        <option value="" data-i18n="match.filter.all">Semua Kategori</option>
+      </select>
+    </div>
+
+    <div class="grid grid-2" id="matchList"></div>
+  </section>
+
+  <!-- POST MODAL -->
+  <div class="modal-backdrop" id="postModal">
+    <div class="modal panel-clip">
+      <h3 data-i18n="match.modal.title">Posting Kebutuhan Partner</h3>
+      <form id="postForm">
+        <div class="field">
+          <label data-i18n="match.modal.name">Nama / Tim</label>
+          <input class="input" name="name" required />
+        </div>
+        <div class="field">
+          <label data-i18n="match.modal.event">Lomba yang Diikuti</label>
+          <input class="input" name="event" required />
+        </div>
+        <div class="field">
+          <label data-i18n="match.modal.cat">Kategori</label>
+          <input class="input" name="category" required />
+        </div>
+        <div class="field">
+          <label data-i18n="match.modal.looking">Partner yang Dicari</label>
+          <input class="input" name="looking" required />
+        </div>
+        <div class="field">
+          <label data-i18n="match.modal.skills">Keahlian (pisahkan dengan koma)</label>
+          <input class="input" name="skills" />
+        </div>
+        <div class="field">
+          <label data-i18n="match.modal.contact">Kontak</label>
+          <input class="input" name="contact" required />
+        </div>
+        <div class="flex gap-3 mt-4">
+          <button type="submit" class="btn btn-primary" data-i18n="match.modal.submit">Posting</button>
+          <button type="button" class="btn btn-ghost" onclick="closeModal('postModal')" data-i18n="common.cancel">Batal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    mountChrome("match");
+    let MATCHES = [];
+
+    async function load() {
+      MATCHES = await API.getMatches();
+      const cats = [...new Set(MATCHES.map(m => m.category))];
+      const sel = document.getElementById("catFilter");
+      cats.forEach(c => {
+        const o = document.createElement("option");
+        o.value = c; o.textContent = c; sel.appendChild(o);
+      });
+      render();
+    }
+
+    function render() {
+      const q = document.getElementById("searchInput").value.toLowerCase();
+      const cat = document.getElementById("catFilter").value;
+      const filtered = MATCHES.filter(m => {
+        const hay = (m.name + " " + m.event + " " + m.looking + " " + (m.skills||[]).join(" ")).toLowerCase();
+        return hay.includes(q) && (!cat || m.category === cat);
+      });
+      const wrap = document.getElementById("matchList");
+      if (!filtered.length) {
+        wrap.innerHTML = `<p class="text-mute">${t("match.empty")}</p>`;
+        return;
+      }
+      wrap.innerHTML = filtered.map(m => `
+        <div class="card">
+          <div class="flex gap-4">
+            <div class="avatar">${esc(m.name.charAt(0).toUpperCase())}</div>
+            <div style="flex:1">
+              <div class="flex justify-between items-center">
+                <h3 style="margin:0">${esc(m.name)}</h3>
+                <span class="badge badge-accent">${esc(m.category)}</span>
+              </div>
+              ${m.headline ? `<p class="text-accent small font-mono" style="margin:4px 0 0">${esc(m.headline)}</p>` : ""}
+              <p class="text-dim small" style="margin:4px 0">${esc(m.event)}</p>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <p class="small"><span class="text-mute font-mono">${t("match.looking")}:</span> ${esc(m.looking)}</p>
+          <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
+            ${(m.skills||[]).map(s => `<span class="badge">${esc(s)}</span>`).join("")}
+          </div>
+          <div class="divider"></div>
+          <div class="flex gap-2">
+            <a class="btn btn-sm w-full" href="partner.html?id=${encodeURIComponent(m.id)}" data-i18n="match.detail">Lihat Detail</a>
+            <a class="btn btn-sm btn-primary w-full" href="messages.html?to=${encodeURIComponent(m.id)}" data-i18n="match.message">Kirim Pesan</a>
+          </div>
+        </div>`).join("");
+      applyI18n();
+    }
+
+    document.getElementById("postForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const match = {
+        name: fd.get("name"),
+        event: fd.get("event"),
+        category: fd.get("category"),
+        looking: fd.get("looking"),
+        skills: (fd.get("skills")||"").split(",").map(s=>s.trim()).filter(Boolean),
+        contact: fd.get("contact"),
+      };
+      await API.addMatch(match);
+      e.target.reset();
+      closeModal("postModal");
+      toast(t("common.saved"), "ok");
+      await load();
+    });
+
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Match Partner — Sistem Pencarian Partner Lomba</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container">
+      <div class="sys-label" data-i18n="home.tag">SISTEM PENCARIAN PARTNER 001</div>
+      <h1>
+        <span data-i18n="home.title1">TEMUKAN</span>
+        <span class="hl" data-i18n="home.title2">PARTNER LOMBA</span>
+        <span data-i18n="home.title3">TERBAIKMU</span>
+      </h1>
+      <p data-i18n="home.subtitle">Platform untuk mencari rekan tim lomba. Posting kebutuhanmu, temukan talenta, dan menangkan kompetisi bersama.</p>
+      <div class="flex gap-3 mt-6">
+        <a href="match.html" class="btn btn-primary" data-i18n="home.cta.find">Cari Partner</a>
+        <a href="events.html" class="btn btn-ghost" data-i18n="home.cta.events">Lihat Lomba</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="container" style="padding:60px 20px 20px">
+    <div class="section-head">
+      <div>
+        <div class="sys-label">FEATURES</div>
+        <h2 data-i18n="home.feat.title">FITUR UTAMA</h2>
+      </div>
+      <span class="text-dim small" data-i18n="home.feat.sub">Semua yang kamu butuhkan untuk membentuk tim pemenang</span>
+    </div>
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="sys-label">01</div>
+        <h3 data-i18n="home.f1.title">Match Partner</h3>
+        <p class="text-dim" data-i18n="home.f1.desc">Posting kebutuhan partner atau jelajahi daftar peserta yang mencari rekan tim.</p>
+      </div>
+      <div class="card">
+        <div class="sys-label">02</div>
+        <h3 data-i18n="home.f2.title">Info Lomba</h3>
+        <p class="text-dim" data-i18n="home.f2.desc">Pantau lomba yang akan datang lengkap dengan tanggal, kategori, dan deadline.</p>
+      </div>
+      <div class="card">
+        <div class="sys-label">03</div>
+        <h3 data-i18n="home.f3.title">Profil & Sertifikat</h3>
+        <p class="text-dim" data-i18n="home.f3.desc">Bangun profil profesional dengan skill dan sertifikat seperti portofolio.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- UPCOMING EVENTS -->
+  <section class="container" style="padding:40px 20px">
+    <div class="section-head">
+      <div>
+        <div class="sys-label">EVENTS</div>
+        <h2 data-i18n="home.upcoming">LOMBA TERDEKAT</h2>
+      </div>
+      <a href="events.html" class="btn btn-sm btn-ghost" data-i18n="home.viewall">Lihat Semua</a>
+    </div>
+    <div class="grid grid-3" id="homeEvents"></div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    mountChrome("home");
+    (async () => {
+      const events = (await API.getEvents()).slice(0, 3);
+      const wrap = document.getElementById("homeEvents");
+      wrap.innerHTML = events.map(ev => `
+        <div class="card">
+          <div class="flex gap-3 items-center">
+            <img src="${eventLogo(ev, 48)}" alt="" width="48" height="48" />
+            <div>
+              <span class="badge badge-accent">${esc(ev.category)}</span>
+              <h3 class="mt-2" style="margin-bottom:0">${esc(ev.title)}</h3>
+            </div>
+          </div>
+          <p class="text-dim small mt-2">${esc(ev.organizer)} · ${esc(ev.location)}</p>
+          <div class="divider"></div>
+          <div class="flex justify-between small">
+            <span class="text-mute font-mono">${t("events.date")}</span>
+            <span class="text-accent font-mono">${fmtDate(ev.date)}</span>
+          </div>
+        </div>`).join("");
+    })();
+  </script>
+</body>
+</html>
