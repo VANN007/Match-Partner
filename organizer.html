@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Penyelenggara — Match Partner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <section class="container" style="padding:40px 20px">
+    <div class="section-head">
+      <div>
+        <div class="sys-label">ORGANIZER CONSOLE</div>
+        <h2 data-i18n="org.title">DASHBOARD PENYELENGGARA</h2>
+        <p class="text-dim small mt-2" data-i18n="org.sub">Kelola lomba yang kamu selenggarakan</p>
+      </div>
+      <button class="btn btn-primary" id="newBtn" data-i18n="org.new">+ Buat Lomba</button>
+    </div>
+
+    <!-- pending notice -->
+    <div id="pendingNotice" class="panel panel-clip hidden" style="padding:20px;border-color:var(--accent);margin-bottom:20px">
+      <strong class="text-accent" data-i18n="org.pending.title">Menunggu Verifikasi</strong>
+      <p class="text-dim small" data-i18n="org.pending.desc" style="margin:6px 0 0">Akun penyelenggara kamu sedang menunggu persetujuan admin. Kamu belum bisa membuat lomba.</p>
+    </div>
+
+    <div class="stat-grid mb-4" id="stats"></div>
+    <div id="eventList" class="grid grid-3"></div>
+  </section>
+
+  <!-- EVENT MODAL -->
+  <div class="modal-backdrop" id="evModal">
+    <div class="modal panel-clip">
+      <h3 id="evModalTitle" data-i18n="org.new">Buat Lomba</h3>
+      <form id="evForm">
+        <input type="hidden" name="id" />
+        <div class="field">
+          <label data-i18n="org.f.title">Nama Lomba</label>
+          <input class="input" name="title" required />
+        </div>
+        <div class="field">
+          <label data-i18n="org.f.category">Kategori</label>
+          <input class="input" name="category" required placeholder="IT / Programming" />
+        </div>
+        <div class="field">
+          <label data-i18n="org.f.organizer">Penyelenggara</label>
+          <input class="input" name="organizer" required />
+        </div>
+        <div class="grid grid-2" style="gap:12px">
+          <div class="field">
+            <label data-i18n="org.f.date">Tanggal Lomba</label>
+            <input class="input" type="date" name="date" required />
+          </div>
+          <div class="field">
+            <label data-i18n="org.f.deadline">Deadline Daftar</label>
+            <input class="input" type="date" name="deadline" required />
+          </div>
+        </div>
+        <div class="field">
+          <label data-i18n="org.f.location">Lokasi</label>
+          <input class="input" name="location" placeholder="Online / Jakarta / ..." />
+        </div>
+        <div class="field">
+          <label data-i18n="org.f.color">Warna Logo</label>
+          <input class="input" type="color" name="color" value="#f5d300" style="height:46px;padding:4px" />
+        </div>
+        <div class="field">
+          <label data-i18n="org.f.desc">Deskripsi</label>
+          <textarea class="textarea" name="desc"></textarea>
+        </div>
+        <div class="flex gap-3 mt-4">
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Simpan</button>
+          <button type="button" class="btn btn-ghost" onclick="closeModal('evModal')" data-i18n="common.cancel">Batal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    let ME = null;
+
+    (async () => {
+      await mountChrome("organizer");
+      ME = await requireRole("organizer");
+      if (!ME) return;
+
+      const pending = ME.status === "pending";
+      document.getElementById("pendingNotice").classList.toggle("hidden", !pending);
+      document.getElementById("newBtn").disabled = pending;
+
+      await load();
+    })();
+
+    async function load() {
+      const events = await API.getMyEvents();
+      document.getElementById("stats").innerHTML = `
+        <div class="stat"><div class="num">${events.length}</div><div class="lbl" data-i18n="org.stat.total">Total Lomba</div></div>
+        <div class="stat"><div class="num">${events.filter(e=>daysLeft(e.deadline)>=0).length}</div><div class="lbl" data-i18n="org.stat.open">Pendaftaran Dibuka</div></div>
+      `;
+      const wrap = document.getElementById("eventList");
+      if (!events.length) {
+        wrap.innerHTML = `<p class="text-mute">${t("org.empty")}</p>`;
+      } else {
+        wrap.innerHTML = events.map(ev => {
+          const open = daysLeft(ev.deadline) >= 0;
+          return `
+          <div class="card">
+            <div class="flex gap-3 items-center">
+              <img src="${eventLogo(ev,48)}" alt="" width="48" height="48" />
+              <div style="flex:1">
+                <span class="badge badge-accent">${esc(ev.category)}</span>
+                <h3 style="margin:4px 0 0">${esc(ev.title)}</h3>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="flex justify-between small"><span class="text-mute font-mono">${t("events.date")}</span><span class="font-mono">${fmtDate(ev.date)}</span></div>
+            <div class="flex justify-between small mt-2"><span class="text-mute font-mono">${t("events.deadline")}</span><span class="font-mono ${open?'text-accent':'text-mute'}">${fmtDate(ev.deadline)}</span></div>
+            <div class="divider"></div>
+            <div class="row-actions">
+              <button class="btn btn-sm" onclick="editEvent(${ev.id})" data-i18n="common.edit">Edit</button>
+              <button class="btn btn-sm btn-danger btn-ghost" onclick="delEvent(${ev.id})" data-i18n="common.delete">Hapus</button>
+            </div>
+          </div>`;
+        }).join("");
+      }
+      applyI18n();
+    }
+
+    const form = document.getElementById("evForm");
+
+    document.getElementById("newBtn").addEventListener("click", () => {
+      if (ME.status === "pending") return;
+      form.reset();
+      form.id.value = "";
+      form.organizer.value = ME.fullname || "";
+      form.color.value = "#f5d300";
+      document.getElementById("evModalTitle").textContent = t("org.new");
+      openModal("evModal");
+    });
+
+    async function editEvent(id) {
+      const ev = await API.getEvent(id);
+      if (!ev) return;
+      form.id.value = ev.id;
+      form.title.value = ev.title || "";
+      form.category.value = ev.category || "";
+      form.organizer.value = ev.organizer || "";
+      form.date.value = ev.date || "";
+      form.deadline.value = ev.deadline || "";
+      form.location.value = ev.location || "";
+      form.color.value = ev.color || "#f5d300";
+      form.desc.value = ev.desc || "";
+      document.getElementById("evModalTitle").textContent = t("org.edit");
+      openModal("evModal");
+    }
+
+    async function delEvent(id) {
+      if (!confirm(getLang()==="id" ? "Hapus lomba ini?" : "Delete this event?")) return;
+      await API.deleteEvent(id);
+      toast(t("common.deleted"), "ok");
+      await load();
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const payload = {
+        title: fd.get("title"), category: fd.get("category"), organizer: fd.get("organizer"),
+        date: fd.get("date"), deadline: fd.get("deadline"), location: fd.get("location"),
+        color: fd.get("color"), desc: fd.get("desc"),
+      };
+      const id = fd.get("id");
+      if (id) await API.updateEvent(id, payload);
+      else await API.addEvent(payload);
+      closeModal("evModal");
+      toast(t("common.saved"), "ok");
+      await load();
+    });
+  </script>
+</body>
+</html>

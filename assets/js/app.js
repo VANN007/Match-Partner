@@ -5,8 +5,26 @@
    - page bootstrap
    ========================================================= */
 
-function navbar(active) {
+/* ---------- THEME (light / dark) ---------- */
+function getTheme() {
+  return localStorage.getItem("mp_theme") || "dark";
+}
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", getTheme());
+}
+function setTheme(theme) {
+  localStorage.setItem("mp_theme", theme);
+  applyTheme();
+}
+// apply immediately (before DOM paint) to avoid flash
+applyTheme();
+
+function navbar(active, user) {
   const loggedIn = API.isLoggedIn();
+  const role = user ? user.role : null;
+  const roleLinks = `
+    ${role === "organizer" ? `<a class="nav-link ${active==='organizer'?'active':''}" href="organizer.html" data-i18n="nav.organizer">Dashboard</a>` : ""}
+    ${role === "admin" ? `<a class="nav-link ${active==='admin'?'active':''}" href="admin.html" data-i18n="nav.admin">Admin</a>` : ""}`;
   return `
   <nav class="nav">
     <div class="container nav-inner">
@@ -14,19 +32,33 @@ function navbar(active) {
         <span class="mark"></span>
         <span class="name">MATCH<b>PARTNER</b></span>
       </a>
-      <div class="nav-links">
+      <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="navLinks">
         <a class="nav-link ${active==='home'?'active':''}" href="index.html" data-i18n="nav.home">Beranda</a>
         <a class="nav-link ${active==='match'?'active':''}" href="match.html" data-i18n="nav.match">Cari Partner</a>
         <a class="nav-link ${active==='events'?'active':''}" href="events.html" data-i18n="nav.events">Lomba</a>
-        <a class="nav-link ${active==='messages'?'active':''}" href="messages.html" data-i18n="nav.messages">Pesan</a>
-        <a class="nav-link ${active==='profile'?'active':''}" href="profile.html" data-i18n="nav.profile">Profil</a>
-        <a class="nav-link ${active==='settings'?'active':''}" href="settings.html" data-i18n="nav.settings">Pengaturan</a>
+        ${loggedIn ? `<a class="nav-link ${active==='messages'?'active':''}" href="messages.html" data-i18n="nav.messages">Pesan</a>` : ""}
+        ${roleLinks}
+        ${loggedIn ? `<a class="nav-link ${active==='profile'?'active':''}" href="profile.html" data-i18n="nav.profile">Profil</a>` : ""}
+        ${loggedIn ? `<a class="nav-link ${active==='settings'?'active':''}" href="settings.html" data-i18n="nav.settings">Pengaturan</a>` : ""}
         ${loggedIn
           ? `<a class="nav-link" href="#" id="logoutBtn" data-i18n="nav.logout">Keluar</a>`
           : `<a class="nav-link" href="login.html" data-i18n="nav.login">Masuk</a>`}
+        ${role ? `<span class="role-badge role-${role}">${roleLabel(role)}</span>` : ""}
       </div>
     </div>
   </nav>`;
+}
+
+function roleLabel(role) {
+  const lang = getLang();
+  const map = {
+    id: { participant: "Peserta", organizer: "Penyelenggara", admin: "Admin" },
+    en: { participant: "Participant", organizer: "Organizer", admin: "Admin" },
+  };
+  return (map[lang] && map[lang][role]) || role;
 }
 
 function footer() {
@@ -39,10 +71,14 @@ function footer() {
   </footer>`;
 }
 
-function mountChrome(active) {
+let CURRENT_USER = null;
+
+async function mountChrome(active) {
+  applyTheme();
+  CURRENT_USER = API.isLoggedIn() ? await API.getUser() : null;
   const nav = document.getElementById("navbar");
   const foot = document.getElementById("footer");
-  if (nav) nav.innerHTML = navbar(active);
+  if (nav) nav.innerHTML = navbar(active, CURRENT_USER);
   if (foot) foot.innerHTML = footer();
 
   const logoutBtn = document.getElementById("logoutBtn");
@@ -54,6 +90,26 @@ function mountChrome(active) {
       setTimeout(() => (location.href = "login.html"), 500);
     });
   }
+
+  // mobile hamburger toggle
+  const navToggle = document.getElementById("navToggle");
+  const navLinks = document.getElementById("navLinks");
+  if (navToggle && navLinks) {
+    navToggle.addEventListener("click", () => {
+      const open = navLinks.classList.toggle("open");
+      navToggle.classList.toggle("open", open);
+      navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    // close menu when a link is tapped
+    navLinks.querySelectorAll(".nav-link").forEach(a => {
+      a.addEventListener("click", () => {
+        navLinks.classList.remove("open");
+        navToggle.classList.remove("open");
+        navToggle.setAttribute("aria-expanded", "false");
+      });
+    });
+  }
+
   applyI18n();
 }
 
@@ -84,6 +140,16 @@ function requireAuth() {
     return false;
   }
   return true;
+}
+/* role guard: pass one or more allowed roles. Redirects if not allowed. */
+async function requireRole(...roles) {
+  if (!API.isLoggedIn()) { location.href = "login.html"; return false; }
+  const u = await API.getUser();
+  if (!u || !roles.includes(u.role)) {
+    location.href = "index.html";
+    return false;
+  }
+  return u;
 }
 
 /* ---------- utils ---------- */

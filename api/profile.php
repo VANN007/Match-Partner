@@ -47,9 +47,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 // return profile
-$stmt = db()->prepare('SELECT id, fullname, email, headline, bio, skills FROM users WHERE id = ?');
+$stmt = db()->prepare('SELECT id, fullname, email, role, status, headline, bio, skills FROM users WHERE id = ?');
 $stmt->execute([$uid]);
 $user = $stmt->fetch();
+$user['id'] = (int)$user['id'];
 $user['skills'] = $user['skills'] ? array_map('trim', explode(',', $user['skills'])) : [];
 
 $cs = db()->prepare('SELECT id, name, org, issue_date AS date, cred_id AS credId FROM certificates WHERE user_id = ?');

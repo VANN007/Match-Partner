@@ -3,7 +3,7 @@
    Dark, industrial sci-fi UI. Amber accents, sharp edges.
    ========================================================= */
 
-:root {
+:root, [data-theme="dark"] {
   --bg:        #0c0d10;
   --bg-2:      #121419;
   --panel:     #16181e;
@@ -18,8 +18,36 @@
   --danger:    #ff4d4d;
   --ok:        #4dff91;
   --info:      #4db8ff;
+  --accent-text: #121212; /* text color on accent background */
+  --grid-a:    #0e0f13;
+  --grid-b:    #0c0d10;
+  --bg-overlay-1: rgba(12,13,16,0.92);
+  --bg-overlay-2: rgba(12,13,16,0.97);
   --font-sans: "Rajdhani", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Share Tech Mono", "Consolas", monospace;
+}
+
+/* ---- LIGHT THEME ---- */
+[data-theme="light"] {
+  --bg:        #eef0f4;
+  --bg-2:      #e3e6ec;
+  --panel:     #ffffff;
+  --panel-2:   #f3f5f9;
+  --line:      #c9cfda;
+  --line-soft: #d9dee7;
+  --text:      #1a1d24;
+  --text-dim:  #525a68;
+  --text-mute: #8a92a0;
+  --accent:    #c8a200;   /* darker amber for contrast on light */
+  --accent-2:  #7aa900;
+  --danger:    #d12f2f;
+  --ok:        #1f9d57;
+  --info:      #1f7fd1;
+  --accent-text: #ffffff;
+  --grid-a:    #e9ebf0;
+  --grid-b:    #eef0f4;
+  --bg-overlay-1: rgba(238,240,244,0.90);
+  --bg-overlay-2: rgba(238,240,244,0.96);
 }
 
 * { box-sizing: border-box; }
@@ -37,9 +65,10 @@ html, body {
 body {
   min-height: 100vh;
   background-image:
-    linear-gradient(rgba(12,13,16,0.92), rgba(12,13,16,0.97)),
-    repeating-linear-gradient(45deg, #0e0f13 0, #0e0f13 2px, #0c0d10 2px, #0c0d10 9px);
+    linear-gradient(var(--bg-overlay-1), var(--bg-overlay-2)),
+    repeating-linear-gradient(45deg, var(--grid-a) 0, var(--grid-a) 2px, var(--grid-b) 2px, var(--grid-b) 9px);
   background-attachment: fixed;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 /* ---- Scrollbar ---- */
@@ -115,10 +144,10 @@ body {
 .btn:hover { border-color: var(--accent); color: var(--accent); }
 .btn-primary {
   background: var(--accent);
-  color: #121212;
+  color: var(--accent-text);
   border-color: var(--accent);
 }
-.btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); color: #121212; }
+.btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); color: var(--accent-text); }
 .btn-ghost { background: transparent; }
 .btn-danger:hover { border-color: var(--danger); color: var(--danger); }
 .btn-sm { padding: 6px 12px; font-size: 0.75rem; }
@@ -170,7 +199,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(12,13,16,0.9);
+  background: var(--bg-overlay-1);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
@@ -351,4 +380,165 @@ body {
 .auth-box { max-width: 420px; width: 100%; }
 .tab-row { display: flex; gap: 0; border: 1px solid var(--line); margin-bottom: 24px; }
 .tab-row .tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; font-size: 0.82rem; font-weight: 600; color: var(--text-dim); }
-.tab-row .tab.active { background: var(--accent); color: #121212; }
+.tab-row .tab.active { background: var(--accent); color: var(--accent-text); }
+
+/* =========================================================
+   RESPONSIVE — mobile view + hamburger navigation
+   Single HTML adapts to phone & desktop automatically.
+   ========================================================= */
+
+/* hamburger button (hidden on desktop) */
+.nav-toggle {
+  display: none;
+  margin-left: auto;
+  width: 42px; height: 42px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.nav-toggle span {
+  display: block;
+  width: 20px; height: 2px;
+  background: var(--accent);
+  transition: transform 0.2s, opacity 0.2s;
+}
+.nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle.open span:nth-child(2) { opacity: 0; }
+.nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ---- Tablet / small desktop ---- */
+@media (max-width: 1024px) {
+  .nav-inner { gap: 14px; }
+  .nav-link { padding: 8px 10px; font-size: 0.78rem; letter-spacing: 0.5px; }
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 760px) {
+  .container { padding: 0 16px; }
+
+  /* collapsing navbar into a dropdown panel */
+  .nav-toggle { display: flex; }
+  .nav-inner { gap: 10px; }
+  .nav-links {
+    position: absolute;
+    top: 64px; left: 0; right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin-left: 0;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--line);
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+  }
+  .nav-links.open { max-height: 420px; }
+  .nav-link {
+    padding: 14px 20px;
+    border: none;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 0.9rem;
+  }
+  .nav-link.active { border-color: transparent; border-left: 3px solid var(--accent); }
+
+  /* hero */
+  .hero { padding: 56px 0 44px; }
+  .hero h1 { font-size: clamp(2rem, 10vw, 3rem); letter-spacing: 1px; }
+  .hero p { font-size: 0.98rem; }
+  .hero .flex { flex-direction: column; }
+  .hero .btn { width: 100%; justify-content: center; }
+
+  /* section headers stack */
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .section-head .btn,
+  .section-head .select { width: 100%; }
+  .section-head h2 { font-size: 1.35rem; }
+
+  /* grids already collapse to 1 col at 900px; keep */
+
+  /* controls stack */
+  .flex.gap-3 { flex-wrap: wrap; }
+
+  /* modals full-width feel */
+  .modal { padding: 20px; }
+
+  /* profile avatar row wraps nicely */
+  .avatar { flex-shrink: 0; }
+
+  /* cert item stacks delete button */
+  .cert-item { flex-direction: column; gap: 10px; }
+  .cert-item .btn { align-self: flex-end; }
+
+  /* footer stacks */
+  .footer .flex { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* chat: single column, show either list or thread */
+  .chat-layout { grid-template-columns: 1fr !important; }
+  .bubble { max-width: 85%; }
+}
+
+/* ---- Very small phones ---- */
+@media (max-width: 400px) {
+  .brand .name { font-size: 1rem; letter-spacing: 1px; }
+  .hero h1 { font-size: 1.8rem; }
+  .btn { padding: 9px 14px; font-size: 0.78rem; }
+}
+
+/* =========================================================
+   ROLES + DASHBOARD (admin / organizer)
+   ========================================================= */
+.role-badge {
+  align-self: center;
+  margin-left: 6px;
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.role-badge.role-admin { border-color: var(--danger); color: var(--danger); }
+.role-badge.role-organizer { border-color: var(--info); color: var(--info); }
+
+/* stat cards */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+.stat {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 18px 20px;
+  position: relative;
+}
+.stat::after {
+  content: "";
+  position: absolute; top: 0; left: 0;
+  width: 8px; height: 8px;
+  border-top: 2px solid var(--accent);
+  border-left: 2px solid var(--accent);
+}
+.stat .num { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; color: var(--accent); line-height: 1; }
+.stat .lbl { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-top: 6px; }
+
+/* data table */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); }
+table.data { width: 100%; border-collapse: collapse; min-width: 560px; }
+table.data th, table.data td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); font-size: 0.9rem; }
+table.data th { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); background: var(--bg-2); }
+table.data tr:hover td { background: var(--panel-2); }
+.pill { display:inline-block; padding:2px 9px; font-family:var(--font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px; border:1px solid var(--line); }
+.pill.active { border-color: var(--ok); color: var(--ok); }
+.pill.pending { border-color: var(--accent); color: var(--accent); }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 760px) {
+  .role-badge { margin: 8px 20px; align-self: flex-start; }
+}

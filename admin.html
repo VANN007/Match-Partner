@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Match Partner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <section class="container" style="padding:40px 20px">
+    <div class="section-head">
+      <div>
+        <div class="sys-label">ADMIN CONTROL</div>
+        <h2 data-i18n="admin.title">PANEL ADMIN</h2>
+        <p class="text-dim small mt-2" data-i18n="admin.sub">Kelola pengguna, lomba, dan verifikasi penyelenggara</p>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stat-grid mb-6" id="stats"></div>
+
+    <!-- PENDING ORGANIZERS -->
+    <div class="section-head" style="margin-top:30px">
+      <div><div class="sys-label">APPROVALS</div><h2 style="font-size:1.3rem" data-i18n="admin.pending">Verifikasi Penyelenggara</h2></div>
+    </div>
+    <div class="table-wrap mb-6">
+      <table class="data" id="pendingTable">
+        <thead><tr>
+          <th data-i18n="admin.col.name">Nama</th>
+          <th data-i18n="admin.col.email">Email</th>
+          <th data-i18n="admin.col.action">Aksi</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- USERS -->
+    <div class="section-head" style="margin-top:30px">
+      <div><div class="sys-label">USERS</div><h2 style="font-size:1.3rem" data-i18n="admin.users">Kelola Pengguna</h2></div>
+    </div>
+    <div class="table-wrap mb-6">
+      <table class="data" id="userTable">
+        <thead><tr>
+          <th data-i18n="admin.col.name">Nama</th>
+          <th data-i18n="admin.col.email">Email</th>
+          <th data-i18n="admin.col.role">Role</th>
+          <th data-i18n="admin.col.status">Status</th>
+          <th data-i18n="admin.col.action">Aksi</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- EVENTS -->
+    <div class="section-head" style="margin-top:30px">
+      <div><div class="sys-label">EVENTS</div><h2 style="font-size:1.3rem" data-i18n="admin.events">Kelola Lomba</h2></div>
+    </div>
+    <div class="table-wrap">
+      <table class="data" id="eventTable">
+        <thead><tr>
+          <th data-i18n="admin.col.event">Lomba</th>
+          <th data-i18n="admin.col.category">Kategori</th>
+          <th data-i18n="admin.col.date">Tanggal</th>
+          <th data-i18n="admin.col.action">Aksi</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    let ME = null;
+
+    (async () => {
+      await mountChrome("admin");
+      ME = await requireRole("admin");
+      if (!ME) return;
+      await loadAll();
+    })();
+
+    async function loadAll() {
+      await Promise.all([loadStats(), loadUsers(), loadEvents()]);
+      applyI18n();
+    }
+
+    async function loadStats() {
+      const s = await API.getStats();
+      document.getElementById("stats").innerHTML = `
+        <div class="stat"><div class="num">${s.users}</div><div class="lbl" data-i18n="admin.stat.users">Pengguna</div></div>
+        <div class="stat"><div class="num">${s.organizers}</div><div class="lbl" data-i18n="admin.stat.organizers">Penyelenggara</div></div>
+        <div class="stat"><div class="num">${s.pending}</div><div class="lbl" data-i18n="admin.stat.pending">Menunggu</div></div>
+        <div class="stat"><div class="num">${s.events}</div><div class="lbl" data-i18n="admin.stat.events">Lomba</div></div>
+        <div class="stat"><div class="num">${s.matches}</div><div class="lbl" data-i18n="admin.stat.matches">Postingan Partner</div></div>
+      `;
+    }
+
+    async function loadUsers() {
+      const users = await API.getAllUsers();
+
+      // pending organizers table
+      const pending = users.filter(u => u.role === "organizer" && u.status === "pending");
+      const pbody = document.querySelector("#pendingTable tbody");
+      if (!pending.length) {
+        pbody.innerHTML = `<tr><td colspan="3" class="text-mute">${t("admin.nopending")}</td></tr>`;
+      } else {
+        pbody.innerHTML = pending.map(u => `
+          <tr>
+            <td>${esc(u.fullname)}</td>
+            <td class="font-mono small">${esc(u.email)}</td>
+            <td><div class="row-actions">
+              <button class="btn btn-sm btn-primary" onclick="approve(${u.id})" data-i18n="admin.approve">Setujui</button>
+              <button class="btn btn-sm btn-danger btn-ghost" onclick="rejectUser(${u.id})" data-i18n="admin.reject">Tolak</button>
+            </div></td>
+          </tr>`).join("");
+      }
+
+      // all users table
+      const ubody = document.querySelector("#userTable tbody");
+      ubody.innerHTML = users.map(u => `
+        <tr>
+          <td>${esc(u.fullname)}</td>
+          <td class="font-mono small">${esc(u.email)}</td>
+          <td>
+            <select class="select" style="padding:5px 8px;min-width:130px" onchange="changeRole(${u.id}, this.value)" ${u.id===ME.id?'disabled':''}>
+              <option value="participant" ${u.role==='participant'?'selected':''}>${roleLabel('participant')}</option>
+              <option value="organizer" ${u.role==='organizer'?'selected':''}>${roleLabel('organizer')}</option>
+              <option value="admin" ${u.role==='admin'?'selected':''}>${roleLabel('admin')}</option>
+            </select>
+          </td>
+          <td><span class="pill ${u.status||'active'}">${esc(u.status||'active')}</span></td>
+          <td>
+            ${u.id===ME.id
+              ? `<span class="text-mute small font-mono">// you</span>`
+              : `<button class="btn btn-sm btn-danger btn-ghost" onclick="removeUser(${u.id})" data-i18n="common.delete">Hapus</button>`}
+          </td>
+        </tr>`).join("");
+    }
+
+    async function loadEvents() {
+      const events = await API.getEvents();
+      const body = document.querySelector("#eventTable tbody");
+      if (!events.length) { body.innerHTML = `<tr><td colspan="4" class="text-mute">${t("events.empty")}</td></tr>`; return; }
+      body.innerHTML = events.map(ev => `
+        <tr>
+          <td>${esc(ev.title)}</td>
+          <td>${esc(ev.category)}</td>
+          <td class="font-mono small">${fmtDate(ev.date)}</td>
+          <td><button class="btn btn-sm btn-danger btn-ghost" onclick="delEvent(${ev.id})" data-i18n="common.delete">Hapus</button></td>
+        </tr>`).join("");
+    }
+
+    async function approve(id) { await API.setUserStatus(id, "active"); toast(t("common.saved"),"ok"); await loadAll(); }
+    async function rejectUser(id) {
+      if (!confirm(getLang()==="id"?"Tolak & hapus akun ini?":"Reject & delete this account?")) return;
+      await API.deleteUser(id); toast(t("common.deleted"),"ok"); await loadAll();
+    }
+    async function changeRole(id, role) {
+      await API.setUserRole(id, role);
+      // if promoting an organizer, make sure they're active
+      if (role === "organizer") await API.setUserStatus(id, "active");
+      toast(t("common.saved"),"ok"); await loadAll();
+    }
+    async function removeUser(id) {
+      if (!confirm(getLang()==="id"?"Hapus pengguna ini?":"Delete this user?")) return;
+      await API.deleteUser(id); toast(t("common.deleted"),"ok"); await loadAll();
+    }
+    async function delEvent(id) {
+      if (!confirm(getLang()==="id"?"Hapus lomba ini?":"Delete this event?")) return;
+      await API.deleteEvent(id); toast(t("common.deleted"),"ok"); await loadAll();
+    }
+  </script>
+</body>
+</html>

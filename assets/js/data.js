@@ -128,35 +128,85 @@ const SEED_MATCHES = [
   },
 ];
 
-const SEED_USER = {
-  id: 1,
-  fullname: "Pengguna Demo",
-  email: "demo@matchpartner.id",
-  password: "demo123",
-  headline: "Mahasiswa Informatika | Kompetitor Hackathon",
-  bio: "Senang membangun produk dan ikut lomba. Mencari partner yang solid untuk kompetisi IT dan desain.",
-  skills: ["JavaScript", "React", "UI Design", "Problem Solving"],
-  certificates: [
-    { id: 1, name: "Juara 2 Hackathon Nasional 2025", org: "Komunitas Developer ID", date: "2025-08-01", credId: "HCK-2025-0472" },
-    { id: 2, name: "Google UX Design Certificate", org: "Coursera", date: "2024-11-01", credId: "CRS-UX-99812" },
-  ],
-};
+/* ---------- USERS (multi-account with roles) ----------
+   role: "participant" | "organizer" | "admin"
+   status: "active" | "pending"  (organizer needs admin approval)
+*/
+const SEED_USERS = [
+  {
+    id: 1,
+    fullname: "Pengguna Demo",
+    email: "demo@matchpartner.id",
+    password: "demo123",
+    role: "participant",
+    status: "active",
+    headline: "Mahasiswa Informatika | Kompetitor Hackathon",
+    bio: "Senang membangun produk dan ikut lomba. Mencari partner yang solid untuk kompetisi IT dan desain.",
+    skills: ["JavaScript", "React", "UI Design", "Problem Solving"],
+    certificates: [
+      { id: 1, name: "Juara 2 Hackathon Nasional 2025", org: "Komunitas Developer ID", date: "2025-08-01", credId: "HCK-2025-0472" },
+      { id: 2, name: "Google UX Design Certificate", org: "Coursera", date: "2024-11-01", credId: "CRS-UX-99812" },
+    ],
+  },
+  {
+    id: 2,
+    fullname: "Admin Match Partner",
+    email: "admin@matchpartner.id",
+    password: "admin123",
+    role: "admin",
+    status: "active",
+    headline: "System Administrator",
+    bio: "Mengelola platform Match Partner.",
+    skills: [],
+    certificates: [],
+  },
+  {
+    id: 3,
+    fullname: "Panitia Gemastik",
+    email: "organizer@matchpartner.id",
+    password: "org123",
+    role: "organizer",
+    status: "active",
+    headline: "Penyelenggara Lomba",
+    bio: "Tim penyelenggara kompetisi tingkat nasional.",
+    skills: [],
+    certificates: [],
+  },
+  {
+    id: 4,
+    fullname: "Calon Penyelenggara",
+    email: "pending@matchpartner.id",
+    password: "org123",
+    role: "organizer",
+    status: "pending",
+    headline: "Penyelenggara (menunggu verifikasi)",
+    bio: "",
+    skills: [],
+    certificates: [],
+  },
+];
 
 /* conversations: keyed storage. Each message: {from:"me"|"them", text, ts} */
 const SEED_MESSAGES = {};
 
+/* give the first 3 events to the organizer (id 3) so the demo has data */
+SEED_EVENTS.forEach((e, i) => { e.ownerId = i < 3 ? 3 : 3; });
+
 function seedIfNeeded() {
   if (!localStorage.getItem("mp_events")) localStorage.setItem("mp_events", JSON.stringify(SEED_EVENTS));
   if (!localStorage.getItem("mp_matches")) localStorage.setItem("mp_matches", JSON.stringify(SEED_MATCHES));
-  if (!localStorage.getItem("mp_user")) localStorage.setItem("mp_user", JSON.stringify(SEED_USER));
+  if (!localStorage.getItem("mp_users")) localStorage.setItem("mp_users", JSON.stringify(SEED_USERS));
   if (!localStorage.getItem("mp_messages")) localStorage.setItem("mp_messages", JSON.stringify(SEED_MESSAGES));
 }
 
 /* bump version when seed shape changes, to re-seed cleanly */
-const SEED_VERSION = "2";
+const SEED_VERSION = "3";
 if (localStorage.getItem("mp_seed_version") !== SEED_VERSION) {
   localStorage.removeItem("mp_events");
   localStorage.removeItem("mp_matches");
+  localStorage.removeItem("mp_users");
+  localStorage.removeItem("mp_user");      // old single-user key
+  localStorage.removeItem("mp_session");   // force re-login with new accounts
   localStorage.setItem("mp_seed_version", SEED_VERSION);
 }
 seedIfNeeded();

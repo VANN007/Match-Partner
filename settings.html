@@ -35,6 +35,21 @@
       </div>
     </div>
 
+    <!-- THEME -->
+    <div class="panel panel-clip mb-4" style="padding:24px">
+      <div class="sys-label">APPEARANCE</div>
+      <div class="flex justify-between items-center mt-2" style="flex-wrap:wrap;gap:12px">
+        <div>
+          <strong data-i18n="settings.theme">Tampilan</strong>
+          <p class="text-dim small" data-i18n="settings.theme.desc" style="margin:4px 0 0">Pilih mode terang atau gelap</p>
+        </div>
+        <div class="tab-row" style="margin:0;width:220px">
+          <div class="tab" data-theme-opt="dark" onclick="pickTheme('dark')" data-i18n="settings.theme.dark">Gelap</div>
+          <div class="tab" data-theme-opt="light" onclick="pickTheme('light')" data-i18n="settings.theme.light">Terang</div>
+        </div>
+      </div>
+    </div>
+
     <!-- EMAIL -->
     <div class="panel panel-clip mb-4" style="padding:24px">
       <div class="sys-label">ACCOUNT</div>
@@ -103,10 +118,23 @@
       toast(t("common.saved"), "ok");
     }
 
+    function markTheme() {
+      const cur = getTheme();
+      document.querySelectorAll(".tab[data-theme-opt]").forEach(el => {
+        el.classList.toggle("active", el.getAttribute("data-theme-opt") === cur);
+      });
+    }
+    function pickTheme(th) {
+      setTheme(th);
+      markTheme();
+      toast(t("common.saved"), "ok");
+    }
+
     (async () => {
       const user = await API.getUser();
       document.getElementById("curEmail").value = user.email || "";
       markLang();
+      markTheme();
     })();
 
     document.getElementById("emailForm").addEventListener("submit", async (e) => {

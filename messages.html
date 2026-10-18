@@ -9,7 +9,14 @@
   <link rel="stylesheet" href="assets/css/theme.css" />
   <style>
     .chat-layout { display:grid; grid-template-columns: 280px 1fr; gap:18px; min-height:460px; }
-    @media (max-width:760px){ .chat-layout{ grid-template-columns:1fr; } .chat-list.has-active{ display:none; } }
+    .chat-back { display:none; }
+    @media (max-width:760px){
+      .chat-layout{ grid-template-columns:1fr; }
+      /* when a thread is active, show only the thread; else only the list */
+      .chat-layout.viewing-thread .chat-list { display:none; }
+      .chat-layout:not(.viewing-thread) .thread { display:none; }
+      .chat-back { display:inline-flex; }
+    }
     .conv { padding:14px; border:1px solid var(--line); background:var(--bg-2); cursor:pointer; margin-bottom:8px; transition:border-color .15s; }
     .conv:hover, .conv.active { border-color:var(--accent); }
     .conv .cname { font-weight:600; }
@@ -19,7 +26,7 @@
     .thread-body { flex:1; padding:18px; overflow-y:auto; max-height:420px; display:flex; flex-direction:column; gap:10px; }
     .bubble { max-width:72%; padding:10px 14px; font-size:.92rem; line-height:1.35; }
     .bubble.them { background:var(--panel-2); border:1px solid var(--line); align-self:flex-start; }
-    .bubble.me { background:var(--accent); color:#121212; align-self:flex-end; }
+    .bubble.me { background:var(--accent); color:var(--accent-text); align-self:flex-end; }
     .bubble .ts { display:block; font-size:.64rem; opacity:.6; margin-top:4px; font-family:var(--font-mono); }
     .thread-input { display:flex; gap:8px; padding:14px; border-top:1px solid var(--line); }
     .thread-empty { flex:1; display:flex; align-items:center; justify-content:center; color:var(--text-mute); padding:40px; text-align:center; }
@@ -109,11 +116,15 @@
 
     function openThread(id) {
       activePeer = String(id);
+      document.querySelector(".chat-layout").classList.add("viewing-thread");
       renderConvList();
       const thread = API.getThread(id);
       const name = peerDisplayName(id);
       document.getElementById("thread").innerHTML = `
-        <div class="thread-head">${t("chat.with")}: ${esc(name)}</div>
+        <div class="thread-head flex items-center gap-3">
+          <button class="btn btn-sm btn-ghost chat-back" onclick="backToList()" aria-label="Back">&larr;</button>
+          <span>${t("chat.with")}: ${esc(name)}</span>
+        </div>
         <div class="thread-body" id="threadBody">
           ${thread.map(bubble).join("")}
         </div>
@@ -132,6 +143,10 @@
         input.value = "";
         refreshThread();
       });
+    }
+
+    function backToList() {
+      document.querySelector(".chat-layout").classList.remove("viewing-thread");
     }
 
     function bubble(msg) {

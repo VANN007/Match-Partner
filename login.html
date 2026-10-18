@@ -38,7 +38,11 @@
             <input class="input" type="password" name="password" value="demo123" required />
           </div>
           <button class="btn btn-primary w-full" data-i18n="auth.login.btn">Masuk</button>
-          <p class="text-mute small mt-4 font-mono">// demo: demo@matchpartner.id / demo123</p>
+          <div class="text-mute small mt-4 font-mono" style="line-height:1.7">
+            // peserta: demo@matchpartner.id / demo123<br>
+            // admin: admin@matchpartner.id / admin123<br>
+            // penyelenggara: organizer@matchpartner.id / org123
+          </div>
         </form>
 
         <!-- REGISTER -->
@@ -58,6 +62,14 @@
           <div class="field">
             <label data-i18n="auth.confirm">Konfirmasi Password</label>
             <input class="input" type="password" name="confirm" required />
+          </div>
+          <div class="field">
+            <label data-i18n="auth.role">Daftar Sebagai</label>
+            <select class="select" name="role">
+              <option value="participant" data-i18n="auth.role.participant">Peserta</option>
+              <option value="organizer" data-i18n="auth.role.organizer">Penyelenggara Lomba</option>
+            </select>
+            <p class="text-mute small mt-2 font-mono" data-i18n="auth.role.note">// Penyelenggara perlu verifikasi admin</p>
           </div>
           <button class="btn btn-primary w-full" data-i18n="auth.register.btn">Buat Akun</button>
         </form>
@@ -80,13 +92,19 @@
       document.getElementById("regForm").classList.toggle("hidden", login);
     }
 
+    function destForRole(role) {
+      if (role === "admin") return "admin.html";
+      if (role === "organizer") return "organizer.html";
+      return "index.html";
+    }
+
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
       const res = await API.login(fd.get("email"), fd.get("password"));
       if (!res.ok) { toast(res.error, "err"); return; }
       toast(getLang()==="id" ? "Berhasil masuk." : "Logged in.", "ok");
-      setTimeout(() => (location.href = "index.html"), 500);
+      setTimeout(() => (location.href = destForRole(res.user.role)), 500);
     });
 
     document.getElementById("regForm").addEventListener("submit", async (e) => {
@@ -96,10 +114,15 @@
         toast(getLang()==="id" ? "Konfirmasi password tidak cocok." : "Password confirmation does not match.", "err");
         return;
       }
-      const res = await API.register(fd.get("fullname"), fd.get("email"), fd.get("password"));
+      const role = fd.get("role") || "participant";
+      const res = await API.register(fd.get("fullname"), fd.get("email"), fd.get("password"), role);
       if (!res.ok) { toast(res.error || "Error", "err"); return; }
-      toast(getLang()==="id" ? "Akun dibuat." : "Account created.", "ok");
-      setTimeout(() => (location.href = "profile.html"), 600);
+      if (role === "organizer") {
+        toast(getLang()==="id" ? "Akun penyelenggara dibuat. Menunggu verifikasi admin." : "Organizer account created. Awaiting admin approval.", "ok");
+      } else {
+        toast(getLang()==="id" ? "Akun dibuat." : "Account created.", "ok");
+      }
+      setTimeout(() => (location.href = destForRole(res.user.role)), 800);
     });
   </script>
 </body>

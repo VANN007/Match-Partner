@@ -6,6 +6,9 @@
    PHP + MySQL backend (XAMPP), flip USE_BACKEND to true and
    the methods will call /api/*.php instead. The rest of the
    app does not change.
+
+   Roles: "participant" | "organizer" | "admin"
+   Organizer status: "active" | "pending" (needs admin approval)
    ========================================================= */
 
 const USE_BACKEND = false;              // <-- set true when running on XAMPP with PHP+MySQL
@@ -41,11 +44,61 @@ async function _post(url, body) {
   return res.json();
 }
 
+/* ---------- local storage user helpers (mock mode) ---------- */
+function _users() {
+  return JSON.parse(localStorage.getItem("mp_users") || "[]");
+}
+function _saveUsers(list) {
+  localStorage.setItem("mp_users", JSON.stringify(list));
+}
+function _currentId() {
+  const id = localStorage.getItem("mp_session");
+  return id ? parseInt(id, 10) : null;
+}
+function _stripPw(u) {
+  if (!u) return u;
+  const { password, ...rest } = u;
+  return rest;
+}
+
 const API = {
   /* ---------- EVENTS ---------- */
   async getEvents() {
     if (USE_BACKEND) return _get("events.php");
     return JSON.parse(localStorage.getItem("mp_events") || "[]");
+  },
+  async getEvent(id) {
+    const list = await API.getEvents();
+    return list.find(e => String(e.id) === String(id)) || null;
+  },
+  async getMyEvents() {
+    if (USE_BACKEND) return _get("events.php?mine=1");
+    const uid = _currentId();
+    const list = await API.getEvents();
+    return list.filter(e => String(e.ownerId) === String(uid));
+  },
+  async addEvent(ev) {
+    if (USE_BACKEND) return _post("events.php", ev);
+    const list = await API.getEvents();
+    ev.id = Date.now();
+    ev.ownerId = _currentId();
+    list.push(ev);
+    localStorage.setItem("mp_events", JSON.stringify(list));
+    return ev;
+  },
+  async updateEvent(id, patch) {
+    if (USE_BACKEND) return _post("events.php?id=" + encodeURIComponent(id), patch);
+    const list = await API.getEvents();
+    const ev = list.find(e => String(e.id) === String(id));
+    if (ev) { Object.assign(ev, patch); localStorage.setItem("mp_events", JSON.stringify(list)); }
+    return ev;
+  },
+  async deleteEvent(id) {
+    if (USE_BACKEND) return _post("events.php?action=delete&id=" + encodeURIComponent(id), {});
+    let list = await API.getEvents();
+    list = list.filter(e => String(e.id) !== String(id));
+    localStorage.setItem("mp_events", JSON.stringify(list));
+    return { ok: true };
   },
 
   /* ---------- MATCHES ---------- */
@@ -65,6 +118,13 @@ const API = {
     const list = await API.getMatches();
     return list.find(m => String(m.id) === String(id)) || null;
   },
+  async deleteMatch(id) {
+    if (USE_BACKEND) return _post("matches.php?action=delete&id=" + encodeURIComponent(id), {});
+    let list = await API.getMatches();
+    list = list.filter(m => String(m.id) !== String(id));
+    localStorage.setItem("mp_matches", JSON.stringify(list));
+    return { ok: true };
+  },
 
   /* ---------- MESSAGES (mock, localStorage) ---------- */
   getConversations() {
@@ -80,7 +140,6 @@ const API = {
     all[peerId].push({ from: "me", text, ts: Date.now() });
     localStorage.setItem("mp_messages", JSON.stringify(all));
     localStorage.setItem("mp_peer_" + peerId, peerName || "");
-    // simulate an auto-reply so the thread feels alive
     setTimeout(() => {
       const cur = API.getConversations();
       if (!cur[peerId]) cur[peerId] = [];
@@ -97,62 +156,116 @@ const API = {
   /* ---------- USER / PROFILE ---------- */
   async getUser() {
     if (USE_BACKEND) return _get("profile.php");
-    return JSON.parse(localStorage.getItem("mp_user") || "null");
+    const uid = _currentId();
+    const u = _users().find(x => x.id === uid);
+    return u ? _stripPw(u) : null;
   },
   async updateUser(patch) {
     if (USE_BACKEND) return _post("profile.php", patch);
-    const user = JSON.parse(localStorage.getItem("mp_user") || "{}");
-    Object.assign(user, patch);
-    localStorage.setItem("mp_user", JSON.stringify(user));
-    return user;
+    const uid = _currentId();
+    const list = _users();
+    const u = list.find(x => x.id === uid);
+    if (u) { Object.assign(u, patch); _saveUsers(list); }
+    return _stripPw(u);
   },
 
   /* ---------- CERTIFICATES ---------- */
   async addCertificate(cert) {
+    if (USE_BACKEND) { const u = await API.getUser(); const certs = (u.certificates||[]).concat([{...cert, id: Date.now()}]); return _post("profile.php", { certificates: certs }); }
     const user = await API.getUser();
     cert.id = Date.now();
-    user.certificates = user.certificates || [];
-    user.certificates.push(cert);
-    return API.updateUser({ certificates: user.certificates });
+    const certs = (user.certificates || []).concat([cert]);
+    return API.updateUser({ certificates: certs });
   },
   async deleteCertificate(certId) {
     const user = await API.getUser();
-    user.certificates = (user.certificates || []).filter(c => c.id !== certId);
-    return API.updateUser({ certificates: user.certificates });
+    const certs = (user.certificates || []).filter(c => c.id !== certId);
+    return API.updateUser({ certificates: certs });
   },
 
-  /* ---------- AUTH (mock) ---------- */
+  /* ---------- AUTH ---------- */
   async login(email, password) {
     if (USE_BACKEND) return _post("auth.php?action=login", { email, password });
-    const user = JSON.parse(localStorage.getItem("mp_user") || "null");
-    if (user && user.email === email && user.password === password) {
-      localStorage.setItem("mp_session", "1");
-      return { ok: true, user };
-    }
-    return { ok: false, error: "Email atau password salah." };
+    const u = _users().find(x => x.email === email && x.password === password);
+    if (!u) return { ok: false, error: "Email atau password salah." };
+    localStorage.setItem("mp_session", String(u.id));
+    return { ok: true, user: _stripPw(u) };
   },
-  async register(fullname, email, password) {
-    if (USE_BACKEND) return _post("auth.php?action=register", { fullname, email, password });
-    const user = { ...SEED_USER, fullname, email, password, certificates: [], skills: [] };
-    localStorage.setItem("mp_user", JSON.stringify(user));
-    localStorage.setItem("mp_session", "1");
-    return { ok: true, user };
+  async register(fullname, email, password, role) {
+    role = role || "participant";
+    if (USE_BACKEND) return _post("auth.php?action=register", { fullname, email, password, role });
+    const list = _users();
+    if (list.some(x => x.email === email)) return { ok: false, error: "Email sudah terdaftar." };
+    const user = {
+      id: Date.now(),
+      fullname, email, password, role,
+      status: role === "organizer" ? "pending" : "active",
+      headline: "", bio: "", skills: [], certificates: [],
+    };
+    list.push(user);
+    _saveUsers(list);
+    localStorage.setItem("mp_session", String(user.id));
+    return { ok: true, user: _stripPw(user) };
   },
   logout() {
     localStorage.removeItem("mp_session");
     if (USE_BACKEND) fetch(`${API_BASE}/auth.php?action=logout`, { credentials: "include" });
   },
   isLoggedIn() {
-    return localStorage.getItem("mp_session") === "1";
+    if (USE_BACKEND) return localStorage.getItem("mp_session") === "1";
+    return _currentId() !== null && !!_users().find(x => x.id === _currentId());
   },
 
   async changeEmail(newEmail) {
     return API.updateUser({ email: newEmail });
   },
   async changePassword(current, next) {
-    const user = await API.getUser();
-    if (user.password !== current) return { ok: false, error: "Password saat ini salah." };
-    await API.updateUser({ password: next });
+    if (USE_BACKEND) return _post("profile.php", { _action: "password", current, next });
+    const uid = _currentId();
+    const list = _users();
+    const u = list.find(x => x.id === uid);
+    if (!u || u.password !== current) return { ok: false, error: "Password saat ini salah." };
+    u.password = next;
+    _saveUsers(list);
     return { ok: true };
+  },
+
+  /* ---------- ADMIN ---------- */
+  async getAllUsers() {
+    if (USE_BACKEND) return _get("admin.php?resource=users");
+    return _users().map(_stripPw);
+  },
+  async setUserRole(id, role) {
+    if (USE_BACKEND) return _post("admin.php?resource=users&id=" + encodeURIComponent(id), { role });
+    const list = _users();
+    const u = list.find(x => String(x.id) === String(id));
+    if (u) { u.role = role; _saveUsers(list); }
+    return _stripPw(u);
+  },
+  async setUserStatus(id, status) {
+    if (USE_BACKEND) return _post("admin.php?resource=users&id=" + encodeURIComponent(id), { status });
+    const list = _users();
+    const u = list.find(x => String(x.id) === String(id));
+    if (u) { u.status = status; _saveUsers(list); }
+    return _stripPw(u);
+  },
+  async deleteUser(id) {
+    if (USE_BACKEND) return _post("admin.php?resource=users&action=delete&id=" + encodeURIComponent(id), {});
+    let list = _users().filter(x => String(x.id) !== String(id));
+    _saveUsers(list);
+    return { ok: true };
+  },
+  async getStats() {
+    if (USE_BACKEND) return _get("admin.php?resource=stats");
+    const users = _users();
+    const events = await API.getEvents();
+    const matches = await API.getMatches();
+    return {
+      users: users.length,
+      organizers: users.filter(u => u.role === "organizer").length,
+      pending: users.filter(u => u.role === "organizer" && u.status === "pending").length,
+      events: events.length,
+      matches: matches.length,
+    };
   },
 };
